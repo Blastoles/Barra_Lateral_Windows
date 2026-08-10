@@ -1,0 +1,18 @@
+{
+  "name": "barra-lateral-windows",
+  "version": "1.0.0",
+  "description": "Sidebar Flutuante (Drawer) para Windows com Rust e Tauri v2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.1.1"
+  }
+}

@@ -1,0 +1,25 @@
+[package]
+name = "barra_lateral_windows"
+version = "0.1.0"
+description = "Sidebar Flutuante (Drawer) para Windows com Rust e Tauri"
+edition = "2021"
+
+[lib]
+name = "barra_lateral_windows_lib"
+crate-type = ["staticlib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.0.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0.0", features = ["tray-icon"] }
+tauri-plugin-global-shortcut = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+open = "5.3"
+base64 = "0.22"
+
+[profile.dev]
+incremental = true
+opt-level = 0
+

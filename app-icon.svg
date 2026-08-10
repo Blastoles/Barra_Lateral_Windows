@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="128" fill="#12161d"/>
+  <rect x="32" y="32" width="448" height="448" rx="96" fill="url(#grad)" stroke="rgba(255,255,255,0.1)" stroke-width="8"/>
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+  </defs>
+  <!-- Sidebar Drawer Icon -->
+  <rect x="140" y="140" width="232" height="232" rx="32" fill="none" stroke="#ffffff" stroke-width="24"/>
+  <line x1="280" y1="140" x2="280" y2="372" stroke="#ffffff" stroke-width="24"/>
+  <polyline points="210,256 240,226 240,286" fill="#ffffff"/>
+</svg>

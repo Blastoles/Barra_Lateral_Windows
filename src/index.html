@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Barra Lateral</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app" class="sidebar-container">
+    <!-- Gatilho Flutuante Minimalista (Apple Handle) -->
+    <button id="toggle-btn" class="trigger-btn" title="Expandir/Recolher Barra" aria-label="Abrir gaveta">
+      <svg id="trigger-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m15 18-6-6 6-6"/>
+      </svg>
+    </button>
+
+    <!-- Painel Principal da Gaveta (Apple Glassmorphism Drawer) -->
+    <aside id="drawer" class="drawer-panel">
+      <header class="drawer-header">
+        <h2 class="drawer-title">Atalhos Rápidos</h2>
+      </header>
+
+      <!-- Lista Dinâmica de Atalhos -->
+      <nav id="shortcut-list" class="shortcut-list">
+        <!-- Renderizado dinamicamente pelo main.js -->
+      </nav>
+
+      <!-- Player Interno de Mídia (MP4/Áudio) -->
+      <div id="internal-player" class="internal-player hidden">
+        <div class="player-header">
+          <span id="player-title" class="player-title">Tocando Mídia</span>
+          <button id="close-player-btn" class="icon-close-btn" title="Fechar Player">&times;</button>
+        </div>
+        <video id="media-element" controls playsinline class="media-video"></video>
+      </div>
+
+      <footer class="drawer-footer">
+        <div class="author-credit">
+          <span class="credit-text">Desenvolvido por <strong>Blastoles</strong></span>
+        </div>
+        <button id="settings-btn" class="settings-btn" title="Configurar Atalhos" aria-label="Configurar atalhos">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          Configurar
+        </button>
+      </footer>
+    </aside>
+
+    <!-- Modal / Overlay de Configurações de Atalhos -->
+    <div id="settings-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <header class="modal-header">
+          <h3>Configurar Atalhos</h3>
+          <button id="close-modal-btn" class="icon-close-btn" aria-label="Fechar">&times;</button>
+        </header>
+
+        <div class="modal-body">
+          <form id="add-shortcut-form" class="modal-form">
+            <h4 class="form-title">Adicionar Novo Atalho</h4>
+            
+            <div class="form-group">
+              <label for="sc-title">Nome do Atalho</label>
+              <input type="text" id="sc-title" placeholder="Ex: Meu Site, Calculadora" required />
+            </div>
+
+            <div class="form-group">
+              <label for="sc-sub">Subtítulo / Descrição</label>
+              <input type="text" id="sc-sub" placeholder="Ex: Acessar sistema, App Windows" required />
+            </div>
+
+            <div class="form-group">
+              <label for="sc-type">Tipo de Atalho</label>
+              <select id="sc-type">
+                <option value="url">Link Web (URL)</option>
+                <option value="app">App / Comando Local</option>
+                <option value="audio">Player de Som (MP4/MP3)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="sc-target" id="sc-target-label">Endereço (URL)</label>
+              <input type="text" id="sc-target" placeholder="https://exemplo.com" required />
+            </div>
+
+            <div class="form-group">
+              <label for="sc-hotkey">Atalho de Teclado (opcional)</label>
+              <input type="text" id="sc-hotkey" placeholder="Ex: Alt+Shift+4, Ctrl+Alt+G" />
+            </div>
+
+            <button type="submit" class="btn-primary">+ Adicionar Atalho</button>
+          </form>
+
+          <div class="manage-shortcuts-section">
+            <h4 class="form-title">Atalhos Cadastrados</h4>
+            <div id="manage-shortcuts-list" class="manage-list"></div>
+          </div>
+        </div>
+
+        <footer class="modal-footer">
+          <button id="reset-defaults-btn" class="btn-secondary">Restaurar Padrões</button>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
