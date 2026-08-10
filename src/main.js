@@ -16,24 +16,39 @@ async function playInternalMedia(targetPath, title = 'Tocando Mídia') {
   if (playerTitle) playerTitle.textContent = title;
   playerContainer.classList.remove('hidden');
 
+  // Para qualquer reprodução anterior
+  mediaEl.pause();
+  mediaEl.src = '';
+
   try {
     let src = targetPath;
     if (!targetPath.startsWith('http://') && !targetPath.startsWith('https://') && !targetPath.startsWith('data:')) {
       const b64Data = await callInvoke('read_media_src', { path: targetPath });
       if (b64Data) {
         src = b64Data;
-      } else {
-        const convertFn = window.__TAURI__?.core?.convertFileSrc || window.__TAURI_INTERNALS__?.convertFileSrc;
-        if (typeof convertFn === 'function') src = convertFn(targetPath);
       }
     }
 
+    // Define src e força o carregamento
     mediaEl.src = src;
+    mediaEl.load();
+
+    // Aguarda o media estar pronto para reproduzir antes de chamar play()
+    await new Promise((resolve, reject) => {
+      const onCanPlay = () => { mediaEl.removeEventListener('canplay', onCanPlay); mediaEl.removeEventListener('error', onError); resolve(); };
+      const onError = (e) => { mediaEl.removeEventListener('canplay', onCanPlay); mediaEl.removeEventListener('error', onError); reject(e); };
+      mediaEl.addEventListener('canplay', onCanPlay);
+      mediaEl.addEventListener('error', onError);
+      // Timeout de segurança: 15s
+      setTimeout(() => { mediaEl.removeEventListener('canplay', onCanPlay); mediaEl.removeEventListener('error', onError); reject(new Error('Timeout ao carregar mídia')); }, 15000);
+    });
+
     await mediaEl.play();
   } catch (err) {
     console.warn('Playback no player interno falhou:', err);
   }
 }
+
 
 async function callInvoke(cmd, args = {}) {
   const invokeFn = window.__TAURI__?.core?.invoke 
