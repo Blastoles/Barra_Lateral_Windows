@@ -1,11 +1,33 @@
 const DEFAULT_SHORTCUTS = [
   { id: '1', title: 'GitHub Blastoles', sub: 'Repositórios & Código Aberto', type: 'url', target: 'https://github.com/Blastoles', icon: 'github', hotkey: '' },
-  { id: '2', title: 'Painel SRVBackup', sub: 'Servidor NAS & Armazenamento', type: 'url', target: 'http://srvbackup', icon: 'nas', hotkey: '' },
-  { id: '3', title: 'Sistema de Chamados', sub: 'Suporte & Central de Ajuda', type: 'url', target: 'https://github.com/Blastoles', icon: 'support', hotkey: '' },
-  { id: '4', title: 'Ferramenta Local', sub: 'Prompt de Comando / Windows', type: 'app', target: 'cmd.exe', icon: 'terminal', hotkey: '' }
+  { id: '2', title: 'PowerShell', sub: 'Windows PowerShell', type: 'app', target: 'powershell.exe', icon: 'terminal', hotkey: 'Alt+1' },
+  { id: '3', title: 'Prompt de Comando', sub: 'Terminal cmd.exe', type: 'app', target: 'cmd.exe', icon: 'terminal', hotkey: 'Alt+2' }
 ];
 
 let activeAudio = null;
+
+async function getMediaSrc(targetPath) {
+  if (!targetPath) return '';
+  if (targetPath.startsWith('http://') || targetPath.startsWith('https://') || targetPath.startsWith('data:')) {
+    return targetPath;
+  }
+
+  const resolvedPath = await callInvoke('read_media_src', { path: targetPath });
+  if (!resolvedPath) return '';
+
+  if (resolvedPath.startsWith('http://') || resolvedPath.startsWith('https://') || resolvedPath.startsWith('data:')) {
+    return resolvedPath;
+  }
+
+  const convertFn = window.__TAURI__?.core?.convertFileSrc 
+    || window.__TAURI_INTERNALS__?.convertFileSrc
+    || window.__TAURI__?.tauri?.convertFileSrc;
+
+  if (typeof convertFn === 'function') {
+    return convertFn(resolvedPath);
+  }
+  return resolvedPath;
+}
 
 async function playInternalMedia(targetPath, title = 'Tocando Mídia') {
   const playerContainer = document.getElementById('internal-player');
@@ -21,12 +43,10 @@ async function playInternalMedia(targetPath, title = 'Tocando Mídia') {
   mediaEl.src = '';
 
   try {
-    let src = targetPath;
-    if (!targetPath.startsWith('http://') && !targetPath.startsWith('https://') && !targetPath.startsWith('data:')) {
-      const b64Data = await callInvoke('read_media_src', { path: targetPath });
-      if (b64Data) {
-        src = b64Data;
-      }
+    const src = await getMediaSrc(targetPath);
+    if (!src) {
+      if (playerTitle) playerTitle.textContent = 'Erro: Mídia inválida';
+      return;
     }
 
     // Define src e força o carregamento
@@ -46,6 +66,9 @@ async function playInternalMedia(targetPath, title = 'Tocando Mídia') {
     await mediaEl.play();
   } catch (err) {
     console.warn('Playback no player interno falhou:', err);
+    if (playerTitle) {
+      playerTitle.textContent = typeof err === 'string' ? err : (err?.message || 'Erro ao reproduzir mídia');
+    }
   }
 }
 
@@ -66,16 +89,25 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+let inMemoryShortcuts = null;
+
 function loadShortcuts() {
+  if (Array.isArray(inMemoryShortcuts)) {
+    return inMemoryShortcuts;
+  }
   const saved = localStorage.getItem('blastoles_shortcuts');
-  if (saved) {
+  if (saved !== null) {
     try {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        inMemoryShortcuts = parsed;
+        return parsed;
+      }
     } catch (e) {
-      console.error('Erro ao ler atalhos salvos:', e);
+      console.error('Erro ao ler atalhos do localStorage:', e);
     }
   }
+  inMemoryShortcuts = DEFAULT_SHORTCUTS;
   return DEFAULT_SHORTCUTS;
 }
 
@@ -94,9 +126,36 @@ async function syncGlobalShortcuts(shortcuts) {
   }
 }
 
-function saveShortcuts(shortcuts) {
+async function saveShortcuts(shortcuts) {
+  inMemoryShortcuts = shortcuts;
   localStorage.setItem('blastoles_shortcuts', JSON.stringify(shortcuts));
+  try {
+    await callInvoke('save_shortcuts_file', { content: JSON.stringify(shortcuts, null, 2) });
+  } catch (e) {
+    console.warn('Falha ao salvar atalhos no arquivo AppData:', e);
+  }
   syncGlobalShortcuts(shortcuts);
+}
+
+async function initPersistentShortcuts() {
+  try {
+    const fileContent = await callInvoke('load_shortcuts_file');
+    if (fileContent && typeof fileContent === 'string' && fileContent.trim().length > 0) {
+      const parsed = JSON.parse(fileContent);
+      if (Array.isArray(parsed)) {
+        inMemoryShortcuts = parsed;
+        localStorage.setItem('blastoles_shortcuts', JSON.stringify(parsed));
+        renderShortcutsList();
+        syncGlobalShortcuts(parsed);
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('Carregamento de atalhos via Rust falhou ou arquivo ainda não existe:', e);
+  }
+  const initial = loadShortcuts();
+  saveShortcuts(initial);
+  renderShortcutsList();
 }
 
 function getIconSvg(type, iconClass) {
@@ -115,6 +174,27 @@ function getIconSvg(type, iconClass) {
   return `<div class="icon-wrapper support-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></div>`;
 }
 
+let editingShortcutId = null;
+
+function resetFormMode() {
+  editingShortcutId = null;
+  const formHeader = document.getElementById('form-header-title');
+  const submitBtn = document.getElementById('btn-submit-shortcut');
+  const cancelBtn = document.getElementById('btn-cancel-edit');
+  const addForm = document.getElementById('add-shortcut-form');
+
+  if (formHeader) formHeader.textContent = 'Adicionar Novo Atalho';
+  if (submitBtn) submitBtn.textContent = '+ Adicionar Atalho';
+  if (cancelBtn) cancelBtn.classList.add('hidden');
+  if (addForm) addForm.reset();
+
+  const typeSelect = document.getElementById('sc-type');
+  if (typeSelect) {
+    typeSelect.value = 'url';
+    typeSelect.dispatchEvent(new Event('change'));
+  }
+}
+
 function renderShortcutsList() {
   const shortcutListEl = document.getElementById('shortcut-list');
   const manageListEl = document.getElementById('manage-shortcuts-list');
@@ -124,7 +204,7 @@ function renderShortcutsList() {
   shortcutListEl.innerHTML = '';
   if (manageListEl) manageListEl.innerHTML = '';
 
-  shortcuts.forEach((sc) => {
+  shortcuts.forEach((sc, index) => {
     // Botão na barra lateral
     const btn = document.createElement('button');
     btn.className = 'shortcut-btn';
@@ -154,19 +234,80 @@ function renderShortcutsList() {
       manageItem.className = 'manage-item';
       const hotkeyInfo = sc.hotkey ? ` | ⚡ ${escapeHtml(sc.hotkey)}` : '';
       const typeLabel = sc.type === 'audio' ? 'Áudio' : sc.type === 'url' ? 'Link' : 'App';
+      const isFirst = index === 0;
+      const isLast = index === shortcuts.length - 1;
+
       manageItem.innerHTML = `
         <div class="manage-item-info">
           <span class="manage-item-title">${escapeHtml(sc.title)}</span>
           <span class="manage-item-sub">${typeLabel}: ${escapeHtml(sc.target)}${hotkeyInfo}</span>
         </div>
-        <button class="btn-delete-item" title="Remover atalho" aria-label="Remover">&times;</button>
+        <div class="manage-actions">
+          <button class="btn-action-icon btn-move-up" title="Mover para cima" aria-label="Mover para cima" ${isFirst ? 'disabled' : ''}>▲</button>
+          <button class="btn-action-icon btn-move-down" title="Mover para baixo" aria-label="Mover para baixo" ${isLast ? 'disabled' : ''}>▼</button>
+          <button class="btn-action-icon btn-edit-item" title="Editar atalho" aria-label="Editar">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+          </button>
+          <button class="btn-action-icon btn-delete-item" title="Remover atalho" aria-label="Remover">&times;</button>
+        </div>
       `;
-      manageItem.querySelector('.btn-delete-item').addEventListener('click', () => {
+
+      manageItem.querySelector('.btn-move-up')?.addEventListener('click', async () => {
+        if (index > 0) {
+          const current = loadShortcuts();
+          const temp = current[index];
+          current[index] = current[index - 1];
+          current[index - 1] = temp;
+          await saveShortcuts(current);
+          renderShortcutsList();
+        }
+      });
+
+      manageItem.querySelector('.btn-move-down')?.addEventListener('click', async () => {
+        if (index < shortcuts.length - 1) {
+          const current = loadShortcuts();
+          const temp = current[index];
+          current[index] = current[index + 1];
+          current[index + 1] = temp;
+          await saveShortcuts(current);
+          renderShortcutsList();
+        }
+      });
+
+      manageItem.querySelector('.btn-edit-item')?.addEventListener('click', () => {
+        editingShortcutId = sc.id;
+        document.getElementById('sc-title').value = sc.title;
+        document.getElementById('sc-sub').value = sc.sub || '';
+        const typeSelect = document.getElementById('sc-type');
+        if (typeSelect) {
+          typeSelect.value = sc.type;
+          typeSelect.dispatchEvent(new Event('change'));
+        }
+        document.getElementById('sc-target').value = sc.target;
+        const hotkeyInput = document.getElementById('sc-hotkey');
+        if (hotkeyInput) hotkeyInput.value = sc.hotkey || '';
+
+        const formHeader = document.getElementById('form-header-title');
+        const submitBtn = document.getElementById('btn-submit-shortcut');
+        const cancelBtn = document.getElementById('btn-cancel-edit');
+
+        if (formHeader) formHeader.textContent = 'Editar Atalho';
+        if (submitBtn) submitBtn.textContent = 'Salvar Alterações';
+        if (cancelBtn) cancelBtn.classList.remove('hidden');
+
+        document.getElementById('sc-title')?.focus();
+      });
+
+      manageItem.querySelector('.btn-delete-item')?.addEventListener('click', async () => {
+        if (editingShortcutId === sc.id) {
+          resetFormMode();
+        }
         const current = loadShortcuts();
         const updated = current.filter(item => item.id !== sc.id);
-        saveShortcuts(updated);
+        await saveShortcuts(updated);
         renderShortcutsList();
       });
+
       manageListEl.appendChild(manageItem);
     }
   });
@@ -180,6 +321,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const closeModalBtn = document.getElementById('close-modal-btn');
   const resetBtn = document.getElementById('reset-defaults-btn');
   const addForm = document.getElementById('add-shortcut-form');
+  const cancelEditBtn = document.getElementById('btn-cancel-edit');
+  const browseFileBtn = document.getElementById('browse-file-btn');
+  const exportBackupBtn = document.getElementById('export-backup-btn');
+  const importBackupBtn = document.getElementById('import-backup-btn');
   const typeSelect = document.getElementById('sc-type');
   const targetLabel = document.getElementById('sc-target-label');
   const targetInput = document.getElementById('sc-target');
@@ -189,11 +334,11 @@ document.addEventListener('DOMContentLoaded', () => {
   let isOpen = false;
   let isAnimating = false;
 
-  const currentShortcuts = loadShortcuts();
-  renderShortcutsList();
-  syncGlobalShortcuts(currentShortcuts);
+  const autostartCheckbox = document.getElementById('autostart-checkbox');
 
-  // Escuta eventos vindos do Rust (ex: acionamento por HotKey global)
+  initPersistentShortcuts();
+
+  // Escuta eventos vindos do Rust (ex: acionamento por HotKey global ou menu da bandeja)
   const listenFn = window.__TAURI__?.event?.listen || window.__TAURI_INTERNALS__?.listen;
   if (typeof listenFn === 'function') {
     listenFn('play-internal-media', (event) => {
@@ -201,7 +346,136 @@ document.addEventListener('DOMContentLoaded', () => {
         playInternalMedia(event.payload, 'Mídia via HotKey');
       }
     });
+    listenFn('open-settings-modal', () => {
+      modalOverlay?.classList.remove('hidden');
+    });
   }
+
+  async function syncAutostartState() {
+    try {
+      const isEnabledFn = window.__TAURI__?.autostart?.isEnabled;
+      let enabled = false;
+      if (typeof isEnabledFn === 'function') {
+        enabled = await isEnabledFn();
+      } else {
+        enabled = await callInvoke('plugin:autostart|is_enabled');
+      }
+
+      const autostartInitialized = localStorage.getItem('blastoles_autostart_init');
+      if (!autostartInitialized) {
+        localStorage.setItem('blastoles_autostart_init', 'true');
+        if (!enabled) {
+          const enableFn = window.__TAURI__?.autostart?.enable;
+          if (typeof enableFn === 'function') await enableFn();
+          else await callInvoke('plugin:autostart|enable');
+          enabled = true;
+        }
+      }
+
+      if (autostartCheckbox) autostartCheckbox.checked = !!enabled;
+    } catch (e) {
+      console.warn('Erro ao consultar status de autostart:', e);
+      if (autostartCheckbox) autostartCheckbox.checked = true;
+    }
+  }
+
+  syncAutostartState();
+
+  autostartCheckbox?.addEventListener('change', async (e) => {
+    const shouldEnable = e.target.checked;
+    try {
+      if (shouldEnable) {
+        const enableFn = window.__TAURI__?.autostart?.enable;
+        if (typeof enableFn === 'function') await enableFn();
+        else await callInvoke('plugin:autostart|enable');
+      } else {
+        const disableFn = window.__TAURI__?.autostart?.disable;
+        if (typeof disableFn === 'function') await disableFn();
+        else await callInvoke('plugin:autostart|disable');
+      }
+    } catch (err) {
+      console.error('Erro ao alterar autostart:', err);
+      syncAutostartState();
+    }
+  });
+
+  const sideSelect = document.getElementById('side-select');
+  const monitorSelect = document.getElementById('monitor-select');
+  let currentSide = localStorage.getItem('blastoles_sidebar_side') || 'right';
+  let currentMonitor = localStorage.getItem('blastoles_sidebar_monitor') || 'auto';
+
+  function getSelectedMonitorIndex() {
+    return currentMonitor === 'auto' ? null : parseInt(currentMonitor, 10);
+  }
+
+  async function loadAvailableMonitors() {
+    if (!monitorSelect) return;
+    try {
+      const monitors = await callInvoke('get_available_monitors');
+      monitorSelect.innerHTML = '<option value="auto">Automático / Atual</option>';
+      if (Array.isArray(monitors)) {
+        monitors.forEach(mon => {
+          const opt = document.createElement('option');
+          opt.value = String(mon.index);
+          opt.textContent = mon.name;
+          monitorSelect.appendChild(opt);
+        });
+      }
+      monitorSelect.value = currentMonitor;
+    } catch (err) {
+      console.warn('Erro ao carregar lista de monitores:', err);
+    }
+  }
+
+  loadAvailableMonitors();
+
+  monitorSelect?.addEventListener('change', async (e) => {
+    currentMonitor = e.target.value;
+    localStorage.setItem('blastoles_sidebar_monitor', currentMonitor);
+    try {
+      await callInvoke('toggle_drawer_size', {
+        open: isOpen,
+        side: currentSide,
+        monitorIndex: getSelectedMonitorIndex()
+      });
+    } catch (err) {
+      console.error('Erro ao alternar monitor:', err);
+    }
+  });
+
+  function applySidebarSide(side) {
+    currentSide = side;
+    localStorage.setItem('blastoles_sidebar_side', side);
+    if (sideSelect) sideSelect.value = side;
+    if (side === 'left') {
+      container.classList.add('side-left');
+    } else {
+      container.classList.remove('side-left');
+    }
+  }
+
+  applySidebarSide(currentSide);
+
+  // Reposiciona a janela no lado e monitor salvos imediatamente ao iniciar
+  callInvoke('toggle_drawer_size', {
+    open: false,
+    side: currentSide,
+    monitorIndex: getSelectedMonitorIndex()
+  }).catch(err => console.warn('Erro no posicionamento inicial:', err));
+
+  sideSelect?.addEventListener('change', async (e) => {
+    const newSide = e.target.value;
+    applySidebarSide(newSide);
+    try {
+      await callInvoke('toggle_drawer_size', {
+        open: isOpen,
+        side: newSide,
+        monitorIndex: getSelectedMonitorIndex()
+      });
+    } catch (err) {
+      console.error('Erro ao atualizar lado no backend Rust:', err);
+    }
+  });
 
   closePlayerBtn?.addEventListener('click', () => {
     if (mediaEl) {
@@ -216,7 +490,11 @@ document.addEventListener('DOMContentLoaded', () => {
     isAnimating = true;
 
     try {
-      await callInvoke('toggle_drawer_size', { open: true });
+      await callInvoke('toggle_drawer_size', {
+        open: true,
+        side: currentSide,
+        monitorIndex: getSelectedMonitorIndex()
+      });
       container.classList.add('open');
       isOpen = true;
     } catch (err) {
@@ -237,7 +515,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       setTimeout(async () => {
         try {
-          await callInvoke('toggle_drawer_size', { open: false });
+          await callInvoke('toggle_drawer_size', {
+            open: false,
+            side: currentSide,
+            monitorIndex: getSelectedMonitorIndex()
+          });
         } catch (err) {
           console.error('Erro ao redimensionar janela:', err);
         } finally {
@@ -270,47 +552,123 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   typeSelect?.addEventListener('change', (e) => {
-    if (e.target.value === 'url') {
+    const val = e.target.value;
+    if (val === 'url') {
       targetLabel.textContent = 'Endereço (URL)';
       targetInput.placeholder = 'https://exemplo.com';
-    } else if (e.target.value === 'audio') {
+      browseFileBtn?.classList.add('hidden');
+    } else if (val === 'audio') {
       targetLabel.textContent = 'Arquivo de Áudio / Som (MP4, MP3)';
       targetInput.placeholder = 'som.mp4, C:\\sons\\alerta.mp3, https://...';
+      browseFileBtn?.classList.remove('hidden');
     } else {
       targetLabel.textContent = 'Comando / Aplicativo';
       targetInput.placeholder = 'cmd.exe, calc.exe, C:\\...';
+      browseFileBtn?.classList.remove('hidden');
     }
   });
 
-  addForm?.addEventListener('submit', (e) => {
+  browseFileBtn?.addEventListener('click', async () => {
+    const type = typeSelect?.value;
+    try {
+      if (type === 'audio') {
+        const selected = await callInvoke('pick_and_copy_media');
+        if (selected) targetInput.value = selected;
+      } else if (type === 'app') {
+        const selected = await callInvoke('pick_app_file');
+        if (selected) targetInput.value = selected;
+      }
+    } catch (err) {
+      console.error('Erro ao selecionar arquivo:', err);
+    }
+  });
+
+  exportBackupBtn?.addEventListener('click', async () => {
+    const shortcuts = loadShortcuts();
+    try {
+      await callInvoke('export_backup_file', { content: JSON.stringify(shortcuts, null, 2) });
+    } catch (err) {
+      console.error('Erro ao exportar backup:', err);
+    }
+  });
+
+  importBackupBtn?.addEventListener('click', async () => {
+    try {
+      const content = await callInvoke('import_backup_file');
+      if (content) {
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed)) {
+          await saveShortcuts(parsed);
+          resetFormMode();
+          renderShortcutsList();
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao importar backup:', err);
+    }
+  });
+
+  addForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const title = document.getElementById('sc-title').value.trim();
     const sub = document.getElementById('sc-sub').value.trim();
     const type = document.getElementById('sc-type').value;
-    const target = document.getElementById('sc-target').value.trim();
+    let target = document.getElementById('sc-target').value.trim();
     const hotkeyInput = document.getElementById('sc-hotkey');
     const hotkey = hotkeyInput ? hotkeyInput.value.trim() : '';
 
     if (!title || !target) return;
 
-    const shortcuts = loadShortcuts();
-    shortcuts.push({
-      id: Date.now().toString(),
-      title,
-      sub: sub || (type === 'url' ? 'Link Web' : type === 'audio' ? 'Player de Som' : 'Aplicativo Local'),
-      type,
-      target,
-      icon: type === 'url' ? 'support' : type === 'audio' ? 'audio' : 'terminal',
-      hotkey
-    });
+    if (type === 'audio' && !target.startsWith('http://') && !target.startsWith('https://') && !target.startsWith('data:')) {
+      try {
+        const appDataTarget = await callInvoke('ensure_media_in_appdata', { path: target });
+        if (appDataTarget) target = appDataTarget;
+      } catch (err) {
+        console.warn('Não foi possível copiar arquivo para AppData:', err);
+      }
+    }
 
-    saveShortcuts(shortcuts);
+    const shortcuts = loadShortcuts();
+    const icon = type === 'url' ? 'support' : type === 'audio' ? 'audio' : 'terminal';
+    const subText = sub || (type === 'url' ? 'Link Web' : type === 'audio' ? 'Player de Som' : 'Aplicativo Local');
+
+    if (editingShortcutId) {
+      const idx = shortcuts.findIndex(s => s.id === editingShortcutId);
+      if (idx !== -1) {
+        shortcuts[idx] = {
+          ...shortcuts[idx],
+          title,
+          sub: subText,
+          type,
+          target,
+          icon,
+          hotkey
+        };
+      }
+    } else {
+      shortcuts.push({
+        id: Date.now().toString(),
+        title,
+        sub: subText,
+        type,
+        target,
+        icon,
+        hotkey
+      });
+    }
+
+    await saveShortcuts(shortcuts);
+    resetFormMode();
     renderShortcutsList();
-    addForm.reset();
   });
 
-  resetBtn?.addEventListener('click', () => {
-    saveShortcuts(DEFAULT_SHORTCUTS);
+  cancelEditBtn?.addEventListener('click', () => {
+    resetFormMode();
+  });
+
+  resetBtn?.addEventListener('click', async () => {
+    resetFormMode();
+    await saveShortcuts(DEFAULT_SHORTCUTS);
     renderShortcutsList();
   });
 });

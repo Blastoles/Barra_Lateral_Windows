@@ -20,9 +20,7 @@
 
     <!-- Painel Principal da Gaveta (Apple Glassmorphism Drawer) -->
     <aside id="drawer" class="drawer-panel">
-      <header class="drawer-header">
-        <h2 class="drawer-title">Atalhos Rápidos</h2>
-      </header>
+      <!-- Lista Dinâmica de Atalhos -->
 
       <!-- Lista Dinâmica de Atalhos -->
       <nav id="shortcut-list" class="shortcut-list">
@@ -62,7 +60,7 @@
 
         <div class="modal-body">
           <form id="add-shortcut-form" class="modal-form">
-            <h4 class="form-title">Adicionar Novo Atalho</h4>
+            <h4 id="form-header-title" class="form-title">Adicionar Novo Atalho</h4>
             
             <div class="form-group">
               <label for="sc-title">Nome do Atalho</label>
@@ -85,7 +83,10 @@
 
             <div class="form-group">
               <label for="sc-target" id="sc-target-label">Endereço (URL)</label>
-              <input type="text" id="sc-target" placeholder="https://exemplo.com" required />
+              <div class="input-with-btn">
+                <input type="text" id="sc-target" placeholder="https://exemplo.com" required />
+                <button type="button" id="browse-file-btn" class="btn-browse hidden" title="Procurar arquivo no computador">📁 Procurar</button>
+              </div>
             </div>
 
             <div class="form-group">
@@ -93,16 +94,44 @@
               <input type="text" id="sc-hotkey" placeholder="Ex: Alt+Shift+4, Ctrl+Alt+G" />
             </div>
 
-            <button type="submit" class="btn-primary">+ Adicionar Atalho</button>
+            <div class="form-actions">
+              <button type="submit" id="btn-submit-shortcut" class="btn-primary">+ Adicionar Atalho</button>
+              <button type="button" id="btn-cancel-edit" class="btn-secondary hidden">Cancelar</button>
+            </div>
           </form>
 
           <div class="manage-shortcuts-section">
             <h4 class="form-title">Atalhos Cadastrados</h4>
             <div id="manage-shortcuts-list" class="manage-list"></div>
           </div>
+
+          <div class="system-options-section">
+            <h4 class="form-title">Opções do Sistema</h4>
+            <div class="form-group">
+              <label for="side-select">Lado da Barra na Tela</label>
+              <select id="side-select">
+                <option value="right">Direito (Padrão)</option>
+                <option value="left">Esquerdo</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="monitor-select">Monitor de Exibição</label>
+              <select id="monitor-select">
+                <option value="auto">Automático / Atual</option>
+              </select>
+            </div>
+            <label class="checkbox-label">
+              <input type="checkbox" id="autostart-checkbox" checked />
+              <span>Inicializar junto com o Windows ao ligar o computador</span>
+            </label>
+          </div>
         </div>
 
         <footer class="modal-footer">
+          <div class="backup-actions">
+            <button id="export-backup-btn" class="btn-secondary" title="Exportar cópia de segurança em JSON">📥 Exportar Backup</button>
+            <button id="import-backup-btn" class="btn-secondary" title="Restaurar backup em JSON">📤 Importar Backup</button>
+          </div>
           <button id="reset-defaults-btn" class="btn-secondary">Restaurar Padrões</button>
         </footer>
       </div>

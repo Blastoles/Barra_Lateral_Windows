@@ -110,6 +110,45 @@ html, body {
   opacity: 1;
 }
 
+/* Suporte para Lado Esquerdo (.side-left) */
+.sidebar-container.side-left .trigger-btn {
+  right: auto;
+  left: 0;
+  border-right: 1px solid var(--border-specular);
+  border-left: none;
+  border-radius: 0 14px 14px 0;
+  box-shadow: 6px 0 24px rgba(0, 0, 0, 0.4);
+  transition: left 0.35s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar-container.side-left.open .trigger-btn {
+  left: 265px;
+  right: auto;
+  border-radius: 0 14px 14px 0;
+}
+
+.sidebar-container.side-left .trigger-btn svg {
+  transform: rotate(180deg);
+}
+
+.sidebar-container.side-left.open .trigger-btn svg {
+  transform: rotate(0deg);
+}
+
+.sidebar-container.side-left .drawer-panel {
+  right: auto;
+  left: 0;
+  border-left: none;
+  border-right: 1px solid var(--border-specular);
+  border-radius: 0 20px 20px 0;
+  box-shadow: 16px 0 45px rgba(0, 0, 0, 0.5);
+  transform: translateX(-100%);
+}
+
+.sidebar-container.side-left.open .drawer-panel {
+  transform: translateX(0);
+}
+
 /* Cabeçalho */
 .drawer-header {
   margin-bottom: 16px;
@@ -505,21 +544,20 @@ html, body {
   border-color: var(--accent-blue);
 }
 
-.btn-primary {
+.form-actions {
+  display: flex;
+  gap: 8px;
   margin-top: 4px;
-  padding: 7px;
-  background: var(--accent-blue);
-  border: none;
-  border-radius: 8px;
-  color: #ffffff;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s ease;
 }
 
-.btn-primary:hover {
-  background: #0071e3;
+.form-actions .btn-primary {
+  flex: 1;
+  margin-top: 0;
+}
+
+.form-actions .btn-secondary {
+  padding: 7px 12px;
+  font-size: 0.75rem;
 }
 
 .manage-shortcuts-section {
@@ -532,7 +570,7 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 120px;
+  max-height: 140px;
   overflow-y: auto;
 }
 
@@ -550,6 +588,8 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  flex: 1;
+  min-width: 0;
 }
 
 .manage-item-title {
@@ -569,28 +609,90 @@ html, body {
   text-overflow: ellipsis;
 }
 
-.btn-delete-item {
+.manage-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.btn-action-icon {
   background: none;
   border: none;
-  color: #ff453a;
+  color: var(--text-sub);
   cursor: pointer;
   padding: 4px;
   border-radius: 6px;
   line-height: 1;
-  opacity: 0.8;
-  transition: opacity 0.15s ease, background 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.75;
+  transition: all 0.15s ease;
 }
 
-.btn-delete-item:hover {
+.btn-action-icon:hover:not(:disabled) {
   opacity: 1;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-action-icon:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+.btn-edit-item:hover:not(:disabled) {
+  color: var(--accent-cyan);
+  background: rgba(100, 210, 255, 0.15);
+}
+
+.btn-delete-item {
+  color: #ff453a;
+}
+
+.btn-delete-item:hover:not(:disabled) {
+  color: #ff453a;
   background: rgba(255, 69, 58, 0.15);
+}
+
+.input-with-btn {
+  display: flex;
+  gap: 6px;
+}
+
+.input-with-btn input {
+  flex: 1;
+}
+
+.btn-browse {
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: var(--text-main);
+  font-size: 0.7rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-browse:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .modal-footer {
   padding: 8px 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.backup-actions {
+  display: flex;
+  gap: 6px;
 }
 
 .btn-secondary {
@@ -604,9 +706,36 @@ html, body {
   transition: all 0.15s ease;
 }
 
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
+.system-options-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: var(--text-main);
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px;
+  transition: background 0.15s ease;
+}
+
+.checkbox-label:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.checkbox-label input[type="checkbox"] {
+  accent-color: var(--accent-blue);
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
 }
 
 
