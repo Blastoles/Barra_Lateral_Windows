@@ -1,0 +1,38 @@
+name: "Release Automática - Barra Lateral Windows"
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar Toolchain Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Instalar Dependências Frontend
+        run: npm ci
+
+      - name: Build do Aplicativo e Publicação no GitHub Releases
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "${{ github.ref_name }} — Barra Lateral Windows"
+          releaseBody: "Consulte o CHANGELOG.md para mais detalhes sobre esta versão."
+          releaseDraft: false
+          prerelease: false

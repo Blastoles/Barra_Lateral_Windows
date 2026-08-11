@@ -89,6 +89,29 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function showToast(message, type = 'info', duration = 3200) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+
+  const iconSymbol = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+  toast.innerHTML = `
+    <span class="toast-icon">${iconSymbol}</span>
+    <span class="toast-message">${escapeHtml(message)}</span>
+  `;
+
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add('toast-out');
+    toast.addEventListener('animationend', () => {
+      toast.remove();
+    });
+  }, duration);
+}
+
 let inMemoryShortcuts = null;
 
 function loadShortcuts() {
@@ -204,6 +227,26 @@ function renderShortcutsList() {
   shortcutListEl.innerHTML = '';
   if (manageListEl) manageListEl.innerHTML = '';
 
+  if (shortcuts.length === 0) {
+    shortcutListEl.innerHTML = `
+      <div class="empty-state">
+        <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="16"></line>
+          <line x1="8" y1="12" x2="16" y2="12"></line>
+        </svg>
+        <div class="empty-state-title">Nenhum atalho cadastrado</div>
+        <div class="empty-state-sub">Cadastre seus sites, aplicativos ou arquivos de mídia favoritos.</div>
+        <button id="empty-state-add-btn" class="empty-state-btn">+ Adicionar Atalho</button>
+      </div>
+    `;
+    document.getElementById('empty-state-add-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('settings-modal')?.classList.remove('hidden');
+    });
+    return;
+  }
+
   shortcuts.forEach((sc, index) => {
     // Botão na barra lateral
     const btn = document.createElement('button');
@@ -306,6 +349,7 @@ function renderShortcutsList() {
         const updated = current.filter(item => item.id !== sc.id);
         await saveShortcuts(updated);
         renderShortcutsList();
+        showToast('Atalho removido', 'info');
       });
 
       manageListEl.appendChild(manageItem);
@@ -587,8 +631,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const shortcuts = loadShortcuts();
     try {
       await callInvoke('export_backup_file', { content: JSON.stringify(shortcuts, null, 2) });
+      showToast('Backup exportado com sucesso!', 'success');
     } catch (err) {
       console.error('Erro ao exportar backup:', err);
+      showToast('Erro ao exportar backup', 'error');
     }
   });
 
@@ -601,10 +647,14 @@ document.addEventListener('DOMContentLoaded', () => {
           await saveShortcuts(parsed);
           resetFormMode();
           renderShortcutsList();
+          showToast('Backup importado com sucesso!', 'success');
+        } else {
+          showToast('Formato de backup inválido', 'error');
         }
       }
     } catch (err) {
       console.error('Erro ao importar backup:', err);
+      showToast('Erro ao importar backup', 'error');
     }
   });
 
@@ -617,7 +667,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const hotkeyInput = document.getElementById('sc-hotkey');
     const hotkey = hotkeyInput ? hotkeyInput.value.trim() : '';
 
-    if (!title || !target) return;
+    if (!title || !target) {
+      showToast('Preencha os campos obrigatórios', 'error');
+      return;
+    }
 
     if (type === 'audio' && !target.startsWith('http://') && !target.startsWith('https://') && !target.startsWith('data:')) {
       try {
@@ -631,6 +684,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const shortcuts = loadShortcuts();
     const icon = type === 'url' ? 'support' : type === 'audio' ? 'audio' : 'terminal';
     const subText = sub || (type === 'url' ? 'Link Web' : type === 'audio' ? 'Player de Som' : 'Aplicativo Local');
+    const isEdit = !!editingShortcutId;
 
     if (editingShortcutId) {
       const idx = shortcuts.findIndex(s => s.id === editingShortcutId);
@@ -660,6 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await saveShortcuts(shortcuts);
     resetFormMode();
     renderShortcutsList();
+    showToast(isEdit ? 'Atalho atualizado!' : 'Atalho adicionado com sucesso!', 'success');
   });
 
   cancelEditBtn?.addEventListener('click', () => {
@@ -670,5 +725,6 @@ document.addEventListener('DOMContentLoaded', () => {
     resetFormMode();
     await saveShortcuts(DEFAULT_SHORTCUTS);
     renderShortcutsList();
+    showToast('Atalhos padrões restaurados!', 'info');
   });
 });
