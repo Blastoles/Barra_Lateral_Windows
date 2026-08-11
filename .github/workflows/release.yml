@@ -1,12 +1,14 @@
-name: "Release Automática - Barra Lateral Windows"
+name: "Build & Release - Barra Lateral Windows"
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
 jobs:
-  publish-tauri:
+  build-and-release:
     permissions:
       contents: write
     runs-on: windows-latest
@@ -17,7 +19,7 @@ jobs:
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Instalar Toolchain Rust
@@ -26,13 +28,13 @@ jobs:
       - name: Instalar Dependências Frontend
         run: npm ci
 
-      - name: Build do Aplicativo e Publicação no GitHub Releases
+      - name: Compilar & Publicar Release (Tauri)
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "${{ github.ref_name }} — Barra Lateral Windows"
-          releaseBody: "Consulte o CHANGELOG.md para mais detalhes sobre esta versão."
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'nightly-dev' }}
+          releaseName: ${{ github.ref_type == 'tag' && format('{0} — Barra Lateral Windows', github.ref_name) || 'Nightly Development Build' }}
+          releaseBody: ${{ github.ref_type == 'tag' && 'Consulte o CHANGELOG.md para detalhes da versão.' || 'Build de desenvolvimento automático atualizado a cada commit na branch main.' }}
           releaseDraft: false
-          prerelease: false
+          prerelease: ${{ github.ref_type != 'tag' }}
