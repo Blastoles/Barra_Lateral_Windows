@@ -405,10 +405,18 @@ document.addEventListener('DOMContentLoaded', () => {
         enabled = await callInvoke('plugin:autostart|is_enabled');
       }
 
+      const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'http:';
+      if (isDev && enabled) {
+        const disableFn = window.__TAURI__?.autostart?.disable;
+        if (typeof disableFn === 'function') await disableFn();
+        else await callInvoke('plugin:autostart|disable');
+        enabled = false;
+      }
+
       const autostartInitialized = localStorage.getItem('blastoles_autostart_init');
       if (!autostartInitialized) {
         localStorage.setItem('blastoles_autostart_init', 'true');
-        if (!enabled) {
+        if (!enabled && !isDev) {
           const enableFn = window.__TAURI__?.autostart?.enable;
           if (typeof enableFn === 'function') await enableFn();
           else await callInvoke('plugin:autostart|enable');
@@ -419,7 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (autostartCheckbox) autostartCheckbox.checked = !!enabled;
     } catch (e) {
       console.warn('Erro ao consultar status de autostart:', e);
-      if (autostartCheckbox) autostartCheckbox.checked = true;
+      if (autostartCheckbox) autostartCheckbox.checked = false;
     }
   }
 
