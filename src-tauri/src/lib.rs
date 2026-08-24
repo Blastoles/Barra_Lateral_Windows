@@ -23,6 +23,13 @@ pub struct MonitorInfo {
 
 pub struct ShortcutStateMap(pub Mutex<HashMap<String, (String, String)>>);
 
+pub struct AppWindowStateInner {
+    pub side: String,
+    pub monitor_index: Option<usize>,
+}
+
+pub struct AppWindowState(pub Mutex<AppWindowStateInner>);
+
 #[tauri::command]
 fn get_available_monitors(window: WebviewWindow) -> Result<Vec<MonitorInfo>, String> {
     let available = window.available_monitors().map_err(|e| e.to_string())?;
@@ -55,8 +62,21 @@ fn toggle_drawer_size_impl(
     side: Option<String>,
     monitor_index: Option<usize>,
 ) -> Result<(), String> {
+    let (saved_side, saved_monitor) = if let Some(state) = window.try_state::<AppWindowState>() {
+        if let Ok(inner) = state.0.lock() {
+            (Some(inner.side.clone()), inner.monitor_index)
+        } else {
+            (None, None)
+        }
+    } else {
+        (None, None)
+    };
+
+    let actual_side = side.or(saved_side).unwrap_or_else(|| "right".to_string());
+    let actual_monitor = monitor_index.or(saved_monitor);
+
     let available = window.available_monitors().ok();
-    let target_monitor = if let (Some(mon_list), Some(idx)) = (&available, monitor_index) {
+    let target_monitor = if let (Some(mon_list), Some(idx)) = (&available, actual_monitor) {
         mon_list.get(idx).cloned().or_else(|| window.current_monitor().ok().flatten())
     } else {
         window.current_monitor().ok().flatten()
@@ -68,8 +88,7 @@ fn toggle_drawer_size_impl(
         let open_w = (330.0 * scale_factor) as i32;
         let height = (640.0 * scale_factor) as u32;
 
-        let side_str = side.unwrap_or_else(|| "right".to_string());
-        let is_left = side_str.eq_ignore_ascii_case("left");
+        let is_left = actual_side.eq_ignore_ascii_case("left");
 
         let monitor_size = monitor.size();
         let monitor_pos = monitor.position();
@@ -105,10 +124,17 @@ fn toggle_drawer_size_impl(
 #[tauri::command]
 fn toggle_drawer_size(
     window: WebviewWindow,
+    state: tauri::State<'_, AppWindowState>,
     open: bool,
     side: Option<String>,
     monitor_index: Option<usize>,
 ) -> Result<(), String> {
+    if let Ok(mut inner) = state.0.lock() {
+        if let Some(ref s) = side {
+            inner.side = s.clone();
+        }
+        inner.monitor_index = monitor_index;
+    }
     toggle_drawer_size_impl(&window, open, side, monitor_index)
 }
 
@@ -391,6 +417,10 @@ fn import_backup_file(app: tauri::AppHandle) -> Result<Option<String>, String> {
 pub fn run() {
     tauri::Builder::default()
         .manage(ShortcutStateMap(Mutex::new(HashMap::new())))
+        .manage(AppWindowState(Mutex::new(AppWindowStateInner {
+            side: "right".to_string(),
+            monitor_index: None,
+        })))
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = toggle_drawer_size_impl(&window, true, None, None);
