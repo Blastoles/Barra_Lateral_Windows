@@ -2,17 +2,23 @@
 
 <img src="app-icon.svg" width="80" alt="Barra Lateral Logo" />
 
-# Barra Lateral Windows
+# 🪟 Barra Lateral Windows (Floating Sidebar)
 
-**Barra lateral flutuante para Windows — lançada com um toque, fixada na borda da tela.**
+**Barra lateral flutuante para Windows 10/11 — lançada com um toque, fixada na borda da tela, construída em Rust + Tauri v2.**
 
-[![Build & Release](https://github.com/Blastoles/Barra_Lateral_Windows/actions/workflows/release.yml/badge.svg)](https://github.com/Blastoles/Barra_Lateral_Windows/actions/workflows/release.yml)
+[![Download Setup .EXE](https://img.shields.io/badge/Download_Instalador-.EXE%20(v0.2.0)-orange?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Blastoles/Barra_Lateral_Windows/releases/download/nightly-dev/BarraLateral_0.2.0_x64-setup.exe)
+[![Download .MSI](https://img.shields.io/badge/Download-.MSI-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Blastoles/Barra_Lateral_Windows/releases/download/nightly-dev/BarraLateral_0.2.0_x64_en-US.msi)
+[![Build & Release](https://img.shields.io/github/actions/workflow/status/Blastoles/Barra_Lateral_Windows/release.yml?style=for-the-badge&label=Build)](https://github.com/Blastoles/Barra_Lateral_Windows/actions/workflows/release.yml)
+
 [![Tauri](https://img.shields.io/badge/Tauri-v2.x-24C8DB?logo=tauri&logoColor=white)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-2021-orange?logo=rust&logoColor=white)](https://www.rust-lang.org)
 [![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D6?logo=windows&logoColor=white)](https://www.microsoft.com/windows)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.2.0-blueviolet)](https://github.com/Blastoles/Barra_Lateral_Windows/releases)
-[![Nightly Build](https://img.shields.io/badge/nightly-development-orange)](https://github.com/Blastoles/Barra_Lateral_Windows/releases/tag/nightly-dev)
+
+[📥 Download Direto](#-instalação-e-download) •
+[✨ Funcionalidades](#-funcionalidades) •
+[🧱 Stack Tecnológico](#-stack-tecnológico) •
+[🌐 English Summary](#-english-summary)
 
 </div>
 
@@ -20,9 +26,21 @@
 
 ## 📖 Sobre
 
-**Barra Lateral Windows** é uma sidebar flutuante leve e discreta que fica fixada na borda da tela. Com um clique ela se expande revelando seus atalhos personalizados: URLs, aplicativos, ou sons/músicas — tudo acessível de forma instantânea sem poluir sua barra de tarefas.
+**Barra Lateral Windows** é uma sidebar flutuante leve e discreta que fica fixada na borda da tela. Com um clique ela se expande revelando seus atalhos personalizados: URLs, aplicativos, scripts ou sons/músicas — tudo acessível de forma instantânea sem poluir sua barra de tarefas.
 
-Construída com **Rust + Tauri v2** e uma interface **glassmorphism** inspirada no macOS, ela foi pensada para quem quer produtividade sem abrir mão do visual.
+Construída com **Rust + Tauri v2** e uma interface **glassmorphism** inspirada no macOS, ela foi pensada para quem quer máxima produtividade com baixíssimo consumo de memória RAM.
+
+---
+
+## 🚀 Instalação e Download
+
+### 📦 Instaladores Prontos para Windows (1 Clique)
+
+Você pode baixar e instalar diretamente sem precisar compilar nada:
+
+- 👉 **[Baixar Instalador `BarraLateral_0.2.0_x64-setup.exe` (Recomendado)](https://github.com/Blastoles/Barra_Lateral_Windows/releases/download/nightly-dev/BarraLateral_0.2.0_x64-setup.exe)**
+- 👉 **[Baixar Pacote `BarraLateral_0.2.0_x64_en-US.msi`](https://github.com/Blastoles/Barra_Lateral_Windows/releases/download/nightly-dev/BarraLateral_0.2.0_x64_en-US.msi)**
+- Outras builds disponíveis na página de **[Releases](https://github.com/Blastoles/Barra_Lateral_Windows/releases)**.
 
 ---
 
@@ -75,54 +93,25 @@ Construída com **Rust + Tauri v2** e uma interface **glassmorphism** inspirada 
 | Diálogos Nativos | `rfd` crate |
 | Abertura de URLs/Apps | `open` crate |
 | Frontend | **HTML + CSS + JavaScript Vanilla** |
-| Estilo | Glassmorphism (backdrop-filter, CSS vars) |
+| Estilo | Glassmorphism (`backdrop-filter`, CSS vars) |
 | CI/CD & Automação | **GitHub Actions** (Release & Nightly Builds automatizadas) |
 | Code Style & Linting | **Prettier** + **ESLint** |
 | Build | `@tauri-apps/cli` v2 |
 
 ---
 
-## 📋 Pré-requisitos
+## 💻 Desenvolvimento Local
 
-Antes de começar, certifique-se de ter instalado:
-
+### Pré-requisitos
 - [**Rust**](https://rustup.rs/) (1.77+) com `cargo`
 - [**Node.js**](https://nodejs.org/) (18+)
 - [**Visual Studio C++ Build Tools**](https://visualstudio.microsoft.com/visual-cpp-build-tools/) ou **MinGW-w64**
-- [**WebView2 Runtime**](https://developer.microsoft.com/microsoft-edge/webview2/) (normalmente já incluso no Windows 10/11)
+- [**WebView2 Runtime**](https://developer.microsoft.com/microsoft-edge/webview2/) (incluso no Windows 10/11)
 
----
-
-## 🚀 Instalação e Download
-
-### 📦 Instaladores Prontos (Recomendado)
-
-Você pode baixar os instaladores diretamente no repositório sem compilar nada:
-
-- **[Versões Oficiais (Releases)](https://github.com/Blastoles/Barra_Lateral_Windows/releases)** — Baixe o `.msi` ou `.exe` da versão estável mais recente.
-- **[Nightly Build (Último Commit)](https://github.com/Blastoles/Barra_Lateral_Windows/releases/tag/nightly-dev)** — Baixe o instalador gerado automaticamente a cada alteração no repositório.
-
-### Modo Desenvolvimento (Hot Reload)
-
+### Comandos
 ```bat
-dev.bat
-```
-
-> Mata instâncias anteriores e executa `npm run dev` com builds incrementais para máxima velocidade.
-
-### Build de Produção Local
-
-```bat
-build.bat
-```
-
-> Gera os instaladores `.msi` e `.exe` (NSIS) em `src-tauri/target/release/bundle/`.
-
-### Comandos de Qualidade de Código
-
-```bash
-npm run format   # Formata HTML, CSS, JS e JSON via Prettier
-npm run lint     # Executa análise estática de código via ESLint
+dev.bat     :: Executa em modo desenvolvimento com Hot Reload
+build.bat   :: Gera os instaladores .msi e .exe em src-tauri/target/release/bundle/
 ```
 
 ---
@@ -131,69 +120,25 @@ npm run lint     # Executa análise estática de código via ESLint
 
 Cada atalho pode ter um hotkey do sistema operacional associado. Funciona em **qualquer janela ativa** do Windows.
 
-**Atalhos padrão:**
-
-| Atalho | Ação |
-|--------|------|
+| Atalho Padrão | Ação |
+|---------------|------|
 | `Alt+1` | Abrir PowerShell |
 | `Alt+2` | Abrir Prompt de Comando |
 
 ---
 
-## 🎵 Player de Mídia Interno
+## 🌐 English Summary
 
-Arquivos de áudio e vídeo são reproduzidos **diretamente dentro da barra lateral**, sem abrir nenhum aplicativo externo.
+**Barra Lateral Windows** is an ultra-lightweight floating sidebar launcher for Windows 10/11 built with **Rust** and **Tauri v2**. Featuring a macOS-inspired *glassmorphism* UI, it docks to the left or right edge of any monitor and expands on click or via global hotkeys to launch apps, PowerShell/CMD scripts, URLs, and play local audio/video files using its built-in media player.
 
-**Formatos suportados:** `.mp3` · `.mp4` · `.wav` · `.m4a` · `.ogg` · `.webm` · `.mov`
-
----
-
-## 📁 Estrutura do Projeto
-
-```
-Barra_Lateral_Windows/
-├── .github/
-│   ├── workflows/
-│   │   └── release.yml         # Automação de CI/CD GitHub Actions
-│   ├── ISSUE_TEMPLATE/         # Templates de relatórios de bugs e features
-│   └── PULL_REQUEST_TEMPLATE.md
-├── src/                        # Frontend (HTML, CSS, JS)
-│   ├── index.html              # Interface principal
-│   ├── styles.css              # Estilos glassmorphism e toasts
-│   └── main.js                 # Lógica da UI, comunicação Tauri e toasts
-├── src-tauri/                  # Backend Rust
-│   ├── src/
-│   │   ├── lib.rs              # Comandos Tauri (drawer, atalhos, mídia, tray)
-│   │   └── main.rs             # Entrypoint
-│   ├── Cargo.toml              # Dependências Rust
-│   ├── tauri.conf.json         # Configuração da janela e bundle (MSI / NSIS)
-│   └── capabilities/
-│       └── default.json        # Permissões Tauri
-├── CHANGELOG.md                # Histórico de alterações por versão
-├── CONTRIBUTING.md             # Guia para novos desenvolvedores
-├── .prettierrc                 # Configuração do Prettier
-├── .eslintrc.json              # Configuração do ESLint
-├── dev.bat                     # Script de desenvolvimento rápido
-├── build.bat                   # Script de build de produção
-└── package.json                # Dependências Node e scripts de lint/format
-```
-
----
-
-## 🤝 Contribuindo
-
-Veja o arquivo [CONTRIBUTING.md](CONTRIBUTING.md) para detalhes sobre nosso código de conduta e o processo de envio de pull requests.
-
----
-
-## 📄 Licença
-
-Este projeto está sob a licença **MIT**. Veja o arquivo [LICENSE](LICENSE) para detalhes.
+- **Multi-monitor & Edge Docking**: Pin to the left or right side of any connected display.
+- **Global Keyboard Shortcuts**: Trigger shortcuts from anywhere in Windows (`Alt+1`, custom hotkeys).
+- **System Tray & Auto-start**: Runs silently in the background with JSON configuration backup/restore.
 
 ---
 
 <div align="center">
 
-Feito com ❤️ por **[Blastoles](https://github.com/Blastoles)**
+Desenvolvido por **[Igor Cezario Pereira (Blastoles)](https://github.com/Blastoles)** • Licença [MIT](LICENSE)
 
 </div>
