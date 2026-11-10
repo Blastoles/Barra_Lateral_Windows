@@ -21,7 +21,8 @@
   -webkit-user-drag: none;
 }
 
-html, body {
+html,
+body {
   width: 100%;
   height: 100%;
   background-color: transparent !important;
@@ -101,13 +102,17 @@ html, body {
   padding: 18px 14px;
   transform: translateX(100%);
   opacity: 0;
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  pointer-events: none;
+  visibility: hidden;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, visibility 0.35s;
   z-index: 90;
 }
 
 .sidebar-container.open .drawer-panel {
   transform: translateX(0);
   opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
 }
 
 /* Suporte para Lado Esquerdo (.side-left) */
@@ -440,6 +445,7 @@ html, body {
     transform: scale(0.92);
     opacity: 0;
   }
+
   to {
     transform: scale(1);
     opacity: 1;
@@ -802,6 +808,7 @@ html, body {
     opacity: 0;
     transform: translateY(12px) scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -813,6 +820,7 @@ html, body {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+
   to {
     opacity: 0;
     transform: translateY(8px) scale(0.95);
@@ -869,6 +877,3 @@ html, body {
 .empty-state-btn:hover {
   opacity: 0.9;
 }
-
-
-

@@ -376,7 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const mediaEl = document.getElementById('media-element');
 
   let isOpen = false;
-  let isAnimating = false;
+  let closeResizeTimer = null;
 
   const autostartCheckbox = document.getElementById('autostart-checkbox');
 
@@ -385,42 +385,30 @@ document.addEventListener('DOMContentLoaded', () => {
   // Escuta eventos vindos do Rust (ex: acionamento por HotKey global ou menu da bandeja)
   const listenFn = window.__TAURI__?.event?.listen || window.__TAURI_INTERNALS__?.listen;
   if (typeof listenFn === 'function') {
-    listenFn('play-internal-media', (event) => {
+    listenFn('request-open-drawer', () => {
+      openDrawer();
+    });
+    listenFn('play-internal-media', async (event) => {
       if (event.payload) {
+        await openDrawer();
         playInternalMedia(event.payload, 'Mídia via HotKey');
       }
     });
-    listenFn('open-settings-modal', () => {
+    listenFn('open-settings-modal', async () => {
+      await openDrawer();
       modalOverlay?.classList.remove('hidden');
     });
   }
 
   async function syncAutostartState() {
     try {
-      const isEnabledFn = window.__TAURI__?.autostart?.isEnabled;
-      let enabled = false;
-      if (typeof isEnabledFn === 'function') {
-        enabled = await isEnabledFn();
-      } else {
-        enabled = await callInvoke('plugin:autostart|is_enabled');
-      }
-
-      const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'http:';
-      if (isDev && enabled) {
-        const disableFn = window.__TAURI__?.autostart?.disable;
-        if (typeof disableFn === 'function') await disableFn();
-        else await callInvoke('plugin:autostart|disable');
-        enabled = false;
-      }
-
-      const autostartInitialized = localStorage.getItem('blastoles_autostart_init');
-      if (!autostartInitialized) {
-        localStorage.setItem('blastoles_autostart_init', 'true');
-        if (!enabled && !isDev) {
-          const enableFn = window.__TAURI__?.autostart?.enable;
-          if (typeof enableFn === 'function') await enableFn();
-          else await callInvoke('plugin:autostart|enable');
-          enabled = true;
+      let enabled = await callInvoke('get_autostart_status');
+      if (typeof enabled !== 'boolean') {
+        const isEnabledFn = window.__TAURI__?.autostart?.isEnabled;
+        if (typeof isEnabledFn === 'function') {
+          enabled = await isEnabledFn();
+        } else {
+          enabled = await callInvoke('plugin:autostart|is_enabled');
         }
       }
 
@@ -436,15 +424,16 @@ document.addEventListener('DOMContentLoaded', () => {
   autostartCheckbox?.addEventListener('change', async (e) => {
     const shouldEnable = e.target.checked;
     try {
-      if (shouldEnable) {
-        const enableFn = window.__TAURI__?.autostart?.enable;
-        if (typeof enableFn === 'function') await enableFn();
-        else await callInvoke('plugin:autostart|enable');
-      } else {
-        const disableFn = window.__TAURI__?.autostart?.disable;
-        if (typeof disableFn === 'function') await disableFn();
-        else await callInvoke('plugin:autostart|disable');
+      const enabled = await callInvoke('set_autostart_status', { enabled: shouldEnable });
+      if (autostartCheckbox && typeof enabled === 'boolean') {
+        autostartCheckbox.checked = enabled;
       }
+      showToast(
+        shouldEnable
+          ? 'Inicialização automática ativada!'
+          : 'Inicialização automática desativada.',
+        'info'
+      );
     } catch (err) {
       console.error('Erro ao alterar autostart:', err);
       syncAutostartState();
@@ -538,8 +527,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   async function openDrawer() {
-    if (isAnimating || isOpen) return;
-    isAnimating = true;
+    if (closeResizeTimer) {
+      clearTimeout(closeResizeTimer);
+      closeResizeTimer = null;
+    }
 
     try {
       await callInvoke('toggle_drawer_size', {
@@ -551,21 +542,23 @@ document.addEventListener('DOMContentLoaded', () => {
       isOpen = true;
     } catch (err) {
       console.error('Erro ao abrir gaveta:', err);
-    } finally {
-      isAnimating = false;
     }
   }
 
   async function closeDrawer() {
-    if (isAnimating || !isOpen) return;
-    isAnimating = true;
+    if (closeResizeTimer) {
+      clearTimeout(closeResizeTimer);
+      closeResizeTimer = null;
+    }
 
     try {
       container.classList.remove('open');
       isOpen = false;
       modalOverlay?.classList.add('hidden');
 
-      setTimeout(async () => {
+      closeResizeTimer = setTimeout(async () => {
+        closeResizeTimer = null;
+        if (isOpen) return;
         try {
           await callInvoke('toggle_drawer_size', {
             open: false,
@@ -574,15 +567,18 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         } catch (err) {
           console.error('Erro ao redimensionar janela:', err);
-        } finally {
-          isAnimating = false;
         }
-      }, 300);
+      }, 280);
     } catch (err) {
       console.error('Erro ao fechar gaveta:', err);
-      isAnimating = false;
     }
   }
+
+  container?.addEventListener('click', (e) => {
+    if (isOpen && e.target === container) {
+      closeDrawer();
+    }
+  });
 
   toggleBtn.addEventListener('click', (e) => {
     e.stopPropagation();

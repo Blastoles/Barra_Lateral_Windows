@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
-use tauri_plugin_autostart::MacosLauncher;
+use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 #[derive(Deserialize, Debug, Clone)]
@@ -84,9 +84,10 @@ fn toggle_drawer_size_impl(
 
     if let Some(monitor) = target_monitor {
         let scale_factor = monitor.scale_factor();
-        let closed_w = (50.0 * scale_factor) as i32;
-        let open_w = (330.0 * scale_factor) as i32;
-        let height = (640.0 * scale_factor) as u32;
+        let closed_w = (44.0 * scale_factor) as i32;
+        let closed_h = (68.0 * scale_factor) as i32;
+        let open_w = (315.0 * scale_factor) as i32;
+        let open_h = (640.0 * scale_factor) as i32;
 
         let is_left = actual_side.eq_ignore_ascii_case("left");
 
@@ -94,27 +95,26 @@ fn toggle_drawer_size_impl(
         let monitor_pos = monitor.position();
         let screen_right = monitor_pos.x + (monitor_size.width as i32);
         let screen_left = monitor_pos.x;
-        
-        let current_y = window.outer_position().map(|p| p.y).unwrap_or(monitor_pos.y + 100);
 
-        if is_left {
-            if open {
-                let _ = window.set_position(PhysicalPosition::new(screen_left, current_y));
-                let _ = window.set_size(PhysicalSize::new(open_w as u32, height));
-            } else {
-                let _ = window.set_size(PhysicalSize::new(closed_w as u32, height));
-                let _ = window.set_position(PhysicalPosition::new(screen_left, current_y));
-            }
+        let (win_w, win_h) = if open {
+            (open_w, open_h)
         } else {
-            if open {
-                let target_x = screen_right - open_w;
-                let _ = window.set_position(PhysicalPosition::new(target_x, current_y));
-                let _ = window.set_size(PhysicalSize::new(open_w as u32, height));
-            } else {
-                let target_x = screen_right - closed_w;
-                let _ = window.set_size(PhysicalSize::new(closed_w as u32, height));
-                let _ = window.set_position(PhysicalPosition::new(target_x, current_y));
-            }
+            (closed_w, closed_h)
+        };
+
+        let target_x = if is_left {
+            screen_left
+        } else {
+            screen_right - win_w
+        };
+        let target_y = monitor_pos.y + ((monitor_size.height as i32) - win_h) / 2;
+
+        if open {
+            let _ = window.set_position(PhysicalPosition::new(target_x, target_y));
+            let _ = window.set_size(PhysicalSize::new(win_w as u32, win_h as u32));
+        } else {
+            let _ = window.set_size(PhysicalSize::new(win_w as u32, win_h as u32));
+            let _ = window.set_position(PhysicalPosition::new(target_x, target_y));
         }
     }
 
@@ -413,6 +413,44 @@ fn import_backup_file(app: tauri::AppHandle) -> Result<Option<String>, String> {
     }
 }
 
+fn get_autostart_pref_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    if !app_dir.exists() {
+        std::fs::create_dir_all(&app_dir).map_err(|e| format!("Erro ao criar pasta de dados: {}", e))?;
+    }
+    Ok(app_dir.join("autostart_pref.txt"))
+}
+
+#[allow(dead_code)]
+fn is_autostart_disabled_by_user(app: &tauri::AppHandle) -> bool {
+    if let Ok(path) = get_autostart_pref_path(app) {
+        if let Ok(content) = std::fs::read_to_string(path) {
+            let trimmed = content.trim();
+            return trimmed.eq_ignore_ascii_case("false") || trimmed == "0";
+        }
+    }
+    false
+}
+
+#[tauri::command]
+fn get_autostart_status(app: tauri::AppHandle) -> Result<bool, String> {
+    app.autolaunch().is_enabled().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_autostart_status(app: tauri::AppHandle, enabled: bool) -> Result<bool, String> {
+    if let Ok(pref_path) = get_autostart_pref_path(&app) {
+        let _ = std::fs::write(pref_path, if enabled { "true" } else { "false" });
+    }
+    let autolaunch = app.autolaunch();
+    if enabled {
+        autolaunch.enable().map_err(|e| e.to_string())?;
+    } else {
+        let _ = autolaunch.disable();
+    }
+    autolaunch.is_enabled().map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -423,12 +461,12 @@ pub fn run() {
         })))
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
-                let _ = toggle_drawer_size_impl(&window, true, None, None);
                 let _ = window.show();
                 let _ = window.set_focus();
+                let _ = window.emit("request-open-drawer", ());
             }
         }))
-        .plugin(tauri_plugin_autostart::init(MacosLauncher::AppleScript, Some(vec!["--autostart"])))
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::AppleScript, None))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, shortcut, event| {
@@ -439,7 +477,7 @@ pub fn run() {
                                 if let Some((stype, starget)) = map.get(&shortcut_key) {
                                     if stype == "audio" {
                                         if let Some(window) = app.get_webview_window("main") {
-                                            let _ = toggle_drawer_size_impl(&window, true, None, None);
+                                            let _ = window.show();
                                         }
                                         let _ = app.emit("play-internal-media", starget);
                                     } else if stype == "url" {
@@ -455,6 +493,22 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            #[cfg(not(debug_assertions))]
+            {
+                if !is_autostart_disabled_by_user(app.handle()) {
+                    let _ = app.autolaunch().enable();
+                }
+            }
+            #[cfg(debug_assertions)]
+            {
+                if let Ok(exe) = std::env::current_exe() {
+                    let exe_str = exe.to_string_lossy().to_lowercase();
+                    if exe_str.contains("target") || exe_str.contains("debug") {
+                        let _ = app.autolaunch().disable();
+                    }
+                }
+            }
+
             let toggle_item = MenuItem::with_id(app, "toggle", "Abrir Barra Lateral", true, None::<&str>)?;
             let settings_item = MenuItem::with_id(app, "settings", "Configurações", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Sair Definitivamente", true, None::<&str>)?;
@@ -470,14 +524,13 @@ pub fn run() {
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "toggle" => {
                         if let Some(window) = app.get_webview_window("main") {
-                            let _ = toggle_drawer_size_impl(&window, true, None, None);
                             let _ = window.show();
                             let _ = window.set_focus();
+                            let _ = window.emit("request-open-drawer", ());
                         }
                     }
                     "settings" => {
                         if let Some(window) = app.get_webview_window("main") {
-                            let _ = toggle_drawer_size_impl(&window, true, None, None);
                             let _ = window.show();
                             let _ = window.set_focus();
                             let _ = window.emit("open-settings-modal", ());
@@ -492,9 +545,9 @@ pub fn run() {
                     if let TrayIconEvent::Click { .. } = event {
                         let app = tray.app_handle();
                         if let Some(window) = app.get_webview_window("main") {
-                            let _ = toggle_drawer_size_impl(&window, true, None, None);
                             let _ = window.show();
                             let _ = window.set_focus();
+                            let _ = window.emit("request-open-drawer", ());
                         }
                     }
                 })
@@ -509,8 +562,8 @@ pub fn run() {
                     let monitor_pos = monitor.position();
                     let scale_factor = monitor.scale_factor();
 
-                    let win_width = (50.0 * scale_factor) as i32;
-                    let win_height = (640.0 * scale_factor) as i32;
+                    let win_width = (44.0 * scale_factor) as i32;
+                    let win_height = (68.0 * scale_factor) as i32;
 
                     let target_x = monitor_pos.x + (monitor_size.width as i32) - win_width;
                     let target_y = monitor_pos.y + ((monitor_size.height as i32) - win_height) / 2;
@@ -540,7 +593,9 @@ pub fn run() {
             save_shortcuts_file,
             load_shortcuts_file,
             export_backup_file,
-            import_backup_file
+            import_backup_file,
+            get_autostart_status,
+            set_autostart_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
